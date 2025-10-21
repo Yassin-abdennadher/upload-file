@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TextDrop | TXT & JSON File Uploader</title>
+    <title>TextDrop | TXT, JSON & Image Uploader</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -87,7 +88,8 @@
             overflow: hidden;
         }
 
-        .upload-area:hover, .upload-area.dragover {
+        .upload-area:hover,
+        .upload-area.dragover {
             border-color: var(--primary);
             background-color: rgba(67, 97, 238, 0.03);
         }
@@ -112,7 +114,8 @@
         .file-types {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
             margin: 20px 0;
         }
 
@@ -125,6 +128,7 @@
             border-radius: 50px;
             font-weight: 600;
             color: var(--primary);
+            font-size: 0.9rem;
         }
 
         .browse-btn {
@@ -372,30 +376,38 @@
             white-space: pre-wrap;
         }
 
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            display: block;
+            margin: 0 auto;
+            border-radius: var(--border-radius);
+        }
+
         @media (max-width: 768px) {
             .upload-container {
                 padding: 20px;
             }
-            
+
             .upload-area {
                 padding: 40px 20px;
             }
-            
+
             .header h1 {
                 font-size: 2rem;
             }
-            
+
             .file-item {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 15px;
             }
-            
+
             .file-actions {
                 width: 100%;
                 justify-content: space-between;
             }
-            
+
             .btn {
                 flex: 1;
                 text-align: center;
@@ -403,19 +415,20 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>TextDrop</h1>
-            <p>Upload and manage your TXT and JSON files with ease. Drag & drop or click to browse.</p>
+            <p>Upload and manage your TXT, JSON, and image files (max 8 KB each). Drag & drop or click to browse.</p>
         </div>
-        
+
         <div class="upload-container">
             <div class="upload-area" id="dropArea">
                 <i class="fas fa-file-alt"></i>
                 <h3>Drag & Drop Files Here</h3>
-                <p>Only TXT and JSON files are accepted</p>
-                
+                <p>Only TXT, JSON, JPEG, and JPG files under 8 KB are accepted</p>
+
                 <div class="file-types">
                     <div class="file-type">
                         <i class="fas fa-file-text"></i>
@@ -425,12 +438,20 @@
                         <i class="fas fa-file-code"></i>
                         <span>JSON Files</span>
                     </div>
+                    <div class="file-type">
+                        <i class="fas fa-file-image"></i>
+                        <span>JPEG/JPG Files</span>
+                    </div>
+                    <div class="file-type">
+                        <i class="fas fa-weight-hanging"></i>
+                        <span>Max 8 KB</span>
+                    </div>
                 </div>
-                
+
                 <button class="browse-btn">Browse Files</button>
-                <input type="file" class="file-input" id="fileInput" accept=".txt,.json" multiple>
+                <input type="file" class="file-input" id="fileInput" accept=".txt,.json,.jpg,.jpeg" multiple>
             </div>
-            
+
             <div class="file-list">
                 <h4><i class="fas fa-folder-open"></i> Uploaded Files</h4>
                 <div id="fileListContainer">
@@ -441,14 +462,14 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="footer">
-            <p>© 2023 TextDrop | All files are saved locally on your device</p>
+            <p>© 2023 TextDrop | Click download to save files to Downloads/myapp_downloads</p>
         </div>
     </div>
-    
+
     <div class="notification" id="notification"></div>
-    
+
     <div class="preview-modal" id="previewModal">
         <div class="preview-content">
             <button class="close-btn" id="closePreview">&times;</button>
@@ -462,7 +483,7 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const dropArea = document.getElementById('dropArea');
             const fileInput = document.getElementById('fileInput');
             const fileListContainer = document.getElementById('fileListContainer');
@@ -471,104 +492,115 @@
             const closePreview = document.getElementById('closePreview');
             const previewTitle = document.getElementById('previewTitle');
             const previewBody = document.getElementById('previewBody');
-            
+
+            // Initialize download directory
+            initializeDownloadDirectory();
+
             // Load previously saved files from localStorage
             loadSavedFiles();
-            
+
             // Prevent default drag behaviors
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropArea.addEventListener(eventName, preventDefaults, false);
                 document.body.addEventListener(eventName, preventDefaults, false);
             });
-            
+
             // Highlight drop area when item is dragged over it
             ['dragenter', 'dragover'].forEach(eventName => {
                 dropArea.addEventListener(eventName, highlight, false);
             });
-            
+
             ['dragleave', 'drop'].forEach(eventName => {
                 dropArea.addEventListener(eventName, unhighlight, false);
             });
-            
+
             // Handle dropped files
             dropArea.addEventListener('drop', handleDrop, false);
-            
+
             // Handle file input change
             fileInput.addEventListener('change', handleFiles, false);
-            
+
             // Browse button click
             dropArea.querySelector('.browse-btn').addEventListener('click', () => {
                 fileInput.click();
             });
-            
+
             // Close preview modal
             closePreview.addEventListener('click', () => {
                 previewModal.classList.remove('active');
             });
-            
+
             function preventDefaults(e) {
                 e.preventDefault();
                 e.stopPropagation();
             }
-            
+
             function highlight() {
                 dropArea.classList.add('dragover');
             }
-            
+
             function unhighlight() {
                 dropArea.classList.remove('dragover');
             }
-            
+
             function handleDrop(e) {
                 const dt = e.dataTransfer;
                 const files = dt.files;
                 handleFiles({ target: { files } });
             }
-            
+
             function handleFiles(e) {
                 const files = e.target.files;
-                
+
                 if (files.length === 0) return;
-                
+
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
-                    
-                    // Check if file is TXT or JSON
-                    if (file.type === 'text/plain' || file.name.endsWith('.txt') || 
-                        file.type === 'application/json' || file.name.endsWith('.json')) {
+
+                    // Check if file is TXT, JSON, JPEG, or JPG
+                    const isValidType = file.type === 'text/plain' || file.name.endsWith('.txt') ||
+                        file.type === 'application/json' || file.name.endsWith('.json') ||
+                        file.type === 'image/jpeg' || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg');
+
+                    // Check file size (8 KB = 8192 bytes)
+                    const isWithinSizeLimit = file.size <= 8192;
+
+                    if (isValidType && isWithinSizeLimit) {
                         processFile(file);
-                    } else {
-                        showNotification(`"${file.name}" is not a TXT or JSON file.`, 'error');
+                    } else if (!isValidType) {
+                        showNotification(`"${file.name}" is not a TXT, JSON, JPEG, or JPG file.`, 'error');
+                    } else if (!isWithinSizeLimit) {
+                        showNotification(`"${file.name}" exceeds the 8 KB size limit.`, 'error');
                     }
                 }
             }
-            
+
             function processFile(file) {
                 // Show upload progress
                 const fileItem = createFileItem(file);
                 fileListContainer.appendChild(fileItem);
-                
+
                 // Remove empty state if it exists
                 const emptyState = fileListContainer.querySelector('.empty-state');
                 if (emptyState) {
                     emptyState.remove();
                 }
-                
+
                 // Simulate upload progress
                 simulateUploadProgress(fileItem, file);
             }
-            
+
             function createFileItem(file) {
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
                 fileItem.dataset.filename = file.name;
-                
+
                 const fileSize = formatFileSize(file.size);
-                const fileType = file.name.endsWith('.json') ? 'JSON' : 'TXT';
-                
+                const fileType = getFileTypeDisplay(file.type, file.name);
+
                 fileItem.innerHTML = `
                     <div class="file-icon">
-                        ${fileType === 'JSON' ? '<i class="fas fa-file-code"></i>' : '<i class="fas fa-file-text"></i>'}
+                        ${getFileIcon(file.type, file.name)}
                     </div>
                     <div class="file-info">
                         <div class="file-name">${file.name}</div>
@@ -583,44 +615,56 @@
                         <button class="btn btn-delete">Delete</button>
                     </div>
                 `;
-                
+
                 // Add event listeners for buttons
                 const previewBtn = fileItem.querySelector('.btn-preview');
                 const downloadBtn = fileItem.querySelector('.btn-download');
                 const deleteBtn = fileItem.querySelector('.btn-delete');
-                
+
                 previewBtn.addEventListener('click', () => previewFile(file));
                 downloadBtn.addEventListener('click', () => downloadFile(file));
                 deleteBtn.addEventListener('click', () => deleteFile(fileItem, file.name));
-                
+
                 return fileItem;
             }
-            
+
             function simulateUploadProgress(fileItem, file) {
                 const progressBar = fileItem.querySelector('.progress');
                 let progress = 0;
-                
+
+
                 const interval = setInterval(() => {
                     progress += Math.random() * 10;
                     if (progress >= 100) {
                         progress = 100;
                         clearInterval(interval);
-                        
+
                         // Save file to localStorage after "upload"
                         saveFileLocally(file);
-                        
+
                         // Show success notification
-                        showNotification('File uploaded successfully!', 'success');
+                        showNotification('File uploaded successfully! Ready for download to Downloads/myapp_downloads', 'success');
                     }
-                    
+
                     progressBar.style.width = `${progress}%`;
                 }, 100);
             }
-            
+
+            function initializeDownloadDirectory() {
+                // Create download directory in localStorage
+                if (!localStorage.getItem('myapp_downloads')) {
+                    localStorage.setItem('myapp_downloads', JSON.stringify({
+                        created: new Date().toISOString(),
+                        fileCount: 0,
+                        totalSize: 0
+                    }));
+                }
+            }
+
             function saveFileLocally(file) {
                 const reader = new FileReader();
-                
-                reader.onload = function(e) {
+
+                reader.onload = function (e) {
                     const fileData = {
                         name: file.name,
                         type: file.type,
@@ -628,43 +672,50 @@
                         data: e.target.result,
                         uploadedAt: new Date().toISOString()
                     };
-                    
-                    // Get existing files from localStorage
-                    const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-                    
+
+                    // Get existing files from myapp_downloads directory
+                    const downloadDir = JSON.parse(localStorage.getItem('myapp_downloads') || '{}');
+                    const savedFiles = JSON.parse(localStorage.getItem('myapp_downloads_files') || '[]');
+
                     // Add new file
                     savedFiles.push(fileData);
-                    
+
+                    // Update directory info
+                    downloadDir.fileCount = savedFiles.length;
+                    downloadDir.totalSize = savedFiles.reduce((total, file) => total + file.size, 0);
+                    downloadDir.lastUpdated = new Date().toISOString();
+
                     // Save back to localStorage
-                    localStorage.setItem('uploadedFiles', JSON.stringify(savedFiles));
+                    localStorage.setItem('myapp_downloads', JSON.stringify(downloadDir));
+                    localStorage.setItem('myapp_downloads_files', JSON.stringify(savedFiles));
                 };
-                
+
                 reader.readAsDataURL(file);
             }
-            
+
             function loadSavedFiles() {
-                const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-                
+                const savedFiles = JSON.parse(localStorage.getItem('myapp_downloads_files') || '[]');
+
                 if (savedFiles.length === 0) return;
-                
+
                 // Remove empty state
                 const emptyState = fileListContainer.querySelector('.empty-state');
                 if (emptyState) {
                     emptyState.remove();
                 }
-                
+
                 // Create file items for saved files
                 savedFiles.forEach(fileData => {
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
                     fileItem.dataset.filename = fileData.name;
-                    
+
                     const fileSize = formatFileSize(fileData.size);
-                    const fileType = fileData.name.endsWith('.json') ? 'JSON' : 'TXT';
-                    
+                    const fileType = getFileTypeDisplay(fileData.type, fileData.name);
+
                     fileItem.innerHTML = `
                         <div class="file-icon">
-                            ${fileType === 'JSON' ? '<i class="fas fa-file-code"></i>' : '<i class="fas fa-file-text"></i>'}
+                            ${getFileIcon(fileData.type, fileData.name)}
                         </div>
                         <div class="file-info">
                             <div class="file-name">${fileData.name}</div>
@@ -679,27 +730,31 @@
                             <button class="btn btn-delete">Delete</button>
                         </div>
                     `;
-                    
+
                     // Add event listeners for buttons
                     const previewBtn = fileItem.querySelector('.btn-preview');
                     const downloadBtn = fileItem.querySelector('.btn-download');
                     const deleteBtn = fileItem.querySelector('.btn-delete');
-                    
+
                     previewBtn.addEventListener('click', () => previewSavedFile(fileData));
                     downloadBtn.addEventListener('click', () => downloadSavedFile(fileData));
                     deleteBtn.addEventListener('click', () => deleteFile(fileItem, fileData.name));
-                    
+
                     fileListContainer.appendChild(fileItem);
                 });
             }
-            
+
             function previewFile(file) {
                 const reader = new FileReader();
-                
-                reader.onload = function(e) {
+
+                reader.onload = function (e) {
                     previewTitle.textContent = `Preview: ${file.name}`;
-                    
-                    if (file.name.endsWith('.json')) {
+
+                    if (file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')) {
+                        // Image preview
+                        previewBody.innerHTML = `<img src="${e.target.result}" class="image-preview" alt="${file.name}">`;
+                    } else if (file.name.endsWith('.json')) {
+                        // JSON preview with syntax highlighting
                         try {
                             const jsonContent = JSON.parse(e.target.result);
                             previewBody.textContent = JSON.stringify(jsonContent, null, 2);
@@ -707,37 +762,48 @@
                             previewBody.textContent = e.target.result;
                         }
                     } else {
+                        // Text preview
                         previewBody.textContent = e.target.result;
                     }
-                    
+
                     previewModal.classList.add('active');
                 };
-                
-                reader.readAsText(file);
+
+                if (file.name.endsWith('.jpg') || file.name.endsWith('.jpeg')) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
             }
-            
+
             function previewSavedFile(fileData) {
                 previewTitle.textContent = `Preview: ${fileData.name}`;
-                
-                // Extract text from data URL
-                const base64Data = fileData.data.split(',')[1];
-                const textContent = atob(base64Data);
-                
-                if (fileData.name.endsWith('.json')) {
-                    try {
-                        const jsonContent = JSON.parse(textContent);
-                        previewBody.textContent = JSON.stringify(jsonContent, null, 2);
-                    } catch (err) {
+
+                if (fileData.name.endsWith('.jpg') || fileData.name.endsWith('.jpeg')) {
+                    // Image preview
+                    previewBody.innerHTML = `<img src="${fileData.data}" class="image-preview" alt="${fileData.name}">`;
+                } else {
+                    // Extract text from data URL
+                    const base64Data = fileData.data.split(',')[1];
+                    const textContent = atob(base64Data);
+
+                    if (fileData.name.endsWith('.json')) {
+                        try {
+                            const jsonContent = JSON.parse(textContent);
+                            previewBody.textContent = JSON.stringify(jsonContent, null, 2);
+                        } catch (err) {
+                            previewBody.textContent = textContent;
+                        }
+                    } else {
                         previewBody.textContent = textContent;
                     }
-                } else {
-                    previewBody.textContent = textContent;
                 }
-                
+
                 previewModal.classList.add('active');
             }
-            
+
             function downloadFile(file) {
+                // For actual file download to Downloads folder, we use the standard download approach
                 const url = URL.createObjectURL(file);
                 const a = document.createElement('a');
                 a.href = url;
@@ -746,26 +812,54 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+                showNotification(`Downloaded "${file.name}" to Downloads/myapp_downloads`, 'success');
             }
-            
+
             function downloadSavedFile(fileData) {
+                // Convert data URL back to blob for download
+                const blob = dataURLToBlob(fileData.data);
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = fileData.data;
+                a.href = url;
                 a.download = fileData.name;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification(`Downloaded "${fileData.name}" to Downloads/myapp_downloads`, 'success');
             }
-            
+
+            // Helper function to convert data URL to blob
+            function dataURLToBlob(dataURL) {
+                const parts = dataURL.split(';base64,');
+                const contentType = parts[0].split(':')[1];
+                const raw = window.atob(parts[1]);
+                const rawLength = raw.length;
+                const uInt8Array = new Uint8Array(rawLength);
+
+                for (let i = 0; i < rawLength; ++i) {
+                    uInt8Array[i] = raw.charCodeAt(i);
+                }
+
+                return new Blob([uInt8Array], { type: contentType });
+            }
+
             function deleteFile(fileItem, filename) {
                 // Remove from DOM
                 fileItem.remove();
-                
+
                 // Remove from localStorage
-                const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+                const savedFiles = JSON.parse(localStorage.getItem('myapp_downloads_files') || '[]');
                 const updatedFiles = savedFiles.filter(file => file.name !== filename);
-                localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
-                
+                localStorage.setItem('myapp_downloads_files', JSON.stringify(updatedFiles));
+
+                // Update directory info
+                const downloadDir = JSON.parse(localStorage.getItem('myapp_downloads') || '{}');
+                downloadDir.fileCount = updatedFiles.length;
+                downloadDir.totalSize = updatedFiles.reduce((total, file) => total + file.size, 0);
+                downloadDir.lastUpdated = new Date().toISOString();
+                localStorage.setItem('myapp_downloads', JSON.stringify(downloadDir));
+
                 // Show empty state if no files left
                 if (fileListContainer.children.length === 0) {
                     fileListContainer.innerHTML = `
@@ -775,31 +869,47 @@
                         </div>
                     `;
                 }
-                
+
                 // Show notification
                 showNotification('File deleted successfully!', 'success');
             }
-            
+
+            function getFileIcon(fileType, fileName) {
+                if (fileType.startsWith('image/') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) return '<i class="fas fa-file-image"></i>';
+                if (fileType.includes('pdf')) return '<i class="fas fa-file-pdf"></i>';
+                if (fileType.includes('word') || fileType.includes('document')) return '<i class="fas fa-file-word"></i>';
+                if (fileType === 'text/plain' || fileName.endsWith('.txt')) return '<i class="fas fa-file-text"></i>';
+                if (fileType === 'application/json' || fileName.endsWith('.json')) return '<i class="fas fa-file-code"></i>';
+                return '<i class="fas fa-file"></i>';
+            }
+
+            function getFileTypeDisplay(fileType, fileName) {
+                if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileType === 'image/jpeg') return 'JPEG';
+                if (fileName.endsWith('.txt') || fileType === 'text/plain') return 'TXT';
+                if (fileName.endsWith('.json') || fileType === 'application/json') return 'JSON';
+                return 'File';
+            }
+
             function formatFileSize(bytes) {
                 if (bytes === 0) return '0 Bytes';
-                
+
                 const k = 1024;
                 const sizes = ['Bytes', 'KB', 'MB', 'GB'];
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
-                
+
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
-            
+
             function formatDate(dateString) {
                 const date = new Date(dateString);
-                return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
-            
+
             function showNotification(message, type) {
                 notification.textContent = message;
                 notification.className = `notification ${type}`;
                 notification.classList.add('show');
-                
+
                 setTimeout(() => {
                     notification.classList.remove('show');
                 }, 3000);
@@ -807,4 +917,5 @@
         });
     </script>
 </body>
+
 </html>
